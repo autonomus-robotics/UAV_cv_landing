@@ -12,6 +12,14 @@ def resize_image_in_width(image, width):
     # изменяем размер изображения, 1 - изображени, 2 - tuple, 3 - тип интреполяции изображения
     return cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
 
+def find_contours(binary_image):
+    # Находим контуры на изображении
+    image, contours, hierarchy = cv2.findContours(binary_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Если контуры не найдены, то ничего не возвращаем
+    if not contours:
+        return False, None
+    return True, contours
 
 def find_largest_contour(binary_image):
     # Находим контуры на изображении
@@ -25,30 +33,27 @@ def find_largest_contour(binary_image):
     return True, max(contours, key=cv2.contourArea)
 
 
-def get_thresh_led():
+def get_thresh_led(image):
 
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)  # переводим из BGR пространства в оттенки серого
 
-    kernel = (15, 15)  # создаем ядро (размерность по горизонтали и вертикали)
-    # Размываем изображени по Гауссу, чем больше ядро, тем больше размытие
-    # третий параметр - стандартное отклонени по оси X
-    blurred = cv2.GaussianBlur(gray, kernel, 0)
-
     # создаем двумерный массив - ядро нужной размерности и заполняем его еденицами
     kernel = np.ones((5, 5), np.uint8)
-
     # Erode — размывание(операция сужения),
     # изображение формируется из локальных минимумов — т.е. будут увеличиваться тёмные области
-    erosion = cv2.erode(blurred, kernel, iterations=1)
+    erosion = cv2.erode(gray, kernel, iterations=1)
 
     # Dilate — растягивание(операция расширения),
     # изображение формируется из локальных максимумов — т.е. будут увеличиваться светлые области
-    kernel = np.ones((7, 7), np.uint8)
+    kernel = np.ones((5, 5), np.uint8)
     dilation = cv2.dilate(erosion, kernel, iterations=1)
+
+    kernel = np.ones((7, 7), np.uint8)
+    erosion = cv2.erode(gray, kernel, iterations=1)
 
     # Выбираем пиксели (ниже или выше) определённого порогового значения,
     # последний аргумент задает логику работы фильтрации
-    return cv2.threshold(dilation, 50, 255, cv2.THRESH_TRIANGLE)[1]
+    return cv2.threshold(erosion, 50, 255, cv2.THRESH_BINARY)[1]
 
 
 def get_largest_contour_center(thresh_image):
@@ -80,12 +85,31 @@ if __name__ == '__main__':
     # Производим фильтрацию для поиска необходимых пятен
     thresh_led_image = get_thresh_led(resized_image)
 
-    # Находим центр самого большого контура
-    is_center_founded, center = get_largest_contour_center(thresh_led_image)
 
-    if is_center_founded:
-        cv2.circle(resized_image, center, 3, (0, 255, 0), -1)
-        cv2.imshow('image', resized_image)
+    # Находим центр самого большого контура
+    #is_center_founded, center = get_largest_contour_center(thresh_led_image)
+#
+    #if is_center_founded:
+    #    cv2.circle(resized_image, center, 3, (0, 255, 0), -1)
+    #    cv2.imshow('image', resized_image)
+
+    is_contours_founded,  contours = find_contours(thresh_led_image)
+
+    centers_of_contours = None
+    if is_contours_founded:
+        for contour in contours:
+
+            # Вычислеям моменты контура
+            moments = cv2.moments(contour)
+
+            # Вычисляем центр контура
+            center_x = int(moments["m10"] / moments["m00"])
+            center_y = int(moments["m01"] / moments["m00"])
+
+            cv2.circle(resized_image, (center_x, center_y), 1, (0, 255, 0), -1)
+
+    cv2.imshow('image', resized_image)
+
 
     # Ожидаем нажатие кнопки для закрытия приложения
     key = cv2.waitKey(0)
