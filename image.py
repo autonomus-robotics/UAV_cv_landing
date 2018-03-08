@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 
 
+
 def resize_image_in_width(image, width):
     # вычисляем отношение между исходным изображением и конечным
     r = float(width) / image.shape[1]  # высчитываем отношение размеров изображений посредством деления высот
@@ -73,6 +74,26 @@ def get_largest_contour_center(thresh_image):
     return True, (center_x, center_y)
 
 
+def get_centers_from_contours(contours):
+
+    centers = []
+
+    for i in range(len(contours)):
+
+        # Вычислеям моменты контура
+        moments = cv2.moments(contours[i])
+
+        # Вычисляем центр контура
+        center_x = int(moments["m10"] / moments["m00"])
+        center_y = int(moments["m01"] / moments["m00"])
+
+        centers.append([center_x, center_y])
+
+    return centers
+
+
+
+
 if __name__ == '__main__':
 
     # Читаем изображение из файла,
@@ -85,7 +106,6 @@ if __name__ == '__main__':
     # Производим фильтрацию для поиска необходимых пятен
     thresh_led_image = get_thresh_led(resized_image)
 
-
     # Находим центр самого большого контура
     #is_center_founded, center = get_largest_contour_center(thresh_led_image)
 #
@@ -95,18 +115,38 @@ if __name__ == '__main__':
 
     is_contours_founded,  contours = find_contours(thresh_led_image)
 
-    centers_of_contours = None
+    #centers_of_contours = None
+#
+    #center_x_last = None
+    #center_y_last = None
+#
+    #center_x_first = None
+    #center_y_first = None
+#
+    centers = []
+
     if is_contours_founded:
-        for contour in contours:
 
-            # Вычислеям моменты контура
-            moments = cv2.moments(contour)
+            # Находим центры всех контуров
+            centers = get_centers_from_contours(contours)
 
-            # Вычисляем центр контура
-            center_x = int(moments["m10"] / moments["m00"])
-            center_y = int(moments["m01"] / moments["m00"])
+            # Вписываем центры в квадрат
+            x, y, w, h = cv2.boundingRect(np.array(centers))
 
-            cv2.circle(resized_image, (center_x, center_y), 1, (0, 255, 0), -1)
+            cv2.rectangle(resized_image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+            #for center in centers:
+            #    cv2.circle(resized_image, (center[0], center[1]), 1, (0, 255, 0), -1)
+
+            #if i != 0:
+            #    cv2.line(resized_image, (center_x, center_y), (center_x_last, center_y_last), (0, 255, 0), 1)
+            #else:
+            #    center_x_first = center_x
+            #    center_y_first = center_y
+#
+            #center_x_last = center_x
+            #center_y_last = center_y
+
 
     cv2.imshow('image', resized_image)
 
@@ -117,3 +157,5 @@ if __name__ == '__main__':
         cv2.destroyAllWindows()
     elif key == ord('s'):  # нажать  's' для выхода
         cv2.destroyAllWindows()
+
+
